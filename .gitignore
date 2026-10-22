@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.firebase/
+.env
+.env.*
+!.env.example
+.secret.local
+firebase-debug.log
+firepit-log.txt
+*-debug.log
+*.tsbuildinfo
+.firebase-config/
+*.local
+

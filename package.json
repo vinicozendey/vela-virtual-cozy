@@ -1,0 +1,20 @@
+{
+  "name": "vela-virtual",
+  "private": true,
+  "workspaces": [
+    "web",
+    "functions"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web && npm run check -w functions",
+    "check": "npm run check -w web && npm run check -w functions",
+    "test": "npm run test -w functions",
+    "emulators": "firebase emulators:start",
+    "smoke": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node scripts/smoke-emulator.mjs",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.34.0"
+  }
+}
