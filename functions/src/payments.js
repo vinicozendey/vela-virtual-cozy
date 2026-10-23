@@ -15,9 +15,11 @@ async function gateway(path, key, options = {}) {
 }
 
 export async function createPixCharge({ amount, orderId, description, key }) {
+  // AbacatePay rejects typographic dashes (e.g. U+2014) in PIX descriptions.
+  const pixDescription = description.replace(/[\u2013\u2014]/g, '-');
   const charge = await gateway('/transparents/create', key, {
     method: 'POST',
-    body: JSON.stringify({ method: 'PIX', data: { amount, expiresIn: 3600, description, externalId: orderId, metadata: { orderId } } }),
+    body: JSON.stringify({ method: 'PIX', data: { amount, expiresIn: 3600, description: pixDescription, externalId: orderId, metadata: { orderId } } }),
   });
   assert(charge?.id && charge?.brCode, 502, 'Cobrança PIX incompleta.');
   return {
