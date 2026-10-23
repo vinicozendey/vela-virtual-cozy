@@ -1,4 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+'use client';
+
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signOut, type User } from 'firebase/auth';
 import { api, browserId } from './api';
 import { auth, configured, demoMode } from './firebase';
@@ -52,46 +55,86 @@ function Button({ children, onClick, disabled, type = 'button', variant = 'prima
   return <button type={type} onClick={onClick} disabled={disabled} className={`button button--${variant} ${className}`}>{children}</button>;
 }
 
-export default function App() {
-  const [path, setPath] = useState(location.pathname);
-  const [user, setUser] = useState<User | { email: string; uid: string } | null>(demoMode ? { email: 'criador@exemplo.com', uid: 'demo' } : null);
+type AppUser = User | { email: string; uid: string } | null;
+type AppContextValue = { user: AppUser; authReady: boolean; navigate: (path: string) => void; setPageTitle: (title: string) => void };
+const AppContext = createContext<AppContextValue | null>(null);
+function useApp() {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('AppShell is required.');
+  return context;
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [pageTitle, setTitle] = useState<{ pathname: string; value: string } | null>(null);
+  const title = pageTitle?.pathname === pathname ? pageTitle.value : 'Vela Virtual · Uma intenção, muitas orações';
+  const [user, setUser] = useState<AppUser>(demoMode ? { email: 'criador@exemplo.com', uid: 'demo' } : null);
   const [authReady, setAuthReady] = useState(demoMode);
 
   useEffect(() => {
-    const pop = () => setPath(location.pathname);
-    window.addEventListener('popstate', pop);
-    if (!auth) return () => window.removeEventListener('popstate', pop);
-    const unsubscribe = onAuthStateChanged(auth, current => { setUser(current); setAuthReady(true); });
-    return () => { unsubscribe(); window.removeEventListener('popstate', pop); };
+    if (!auth) { setAuthReady(true); return; }
+    return onAuthStateChanged(auth, current => { setUser(current); setAuthReady(true); });
   }, []);
 
-  function navigate(next: string) { history.pushState(null, '', next); setPath(next.split(/[?#]/)[0]); if (next.includes('#')) setTimeout(() => document.getElementById(next.split('#')[1])?.scrollIntoView({ behavior: 'smooth' }), 0); else window.scrollTo({ top: 0, behavior: 'instant' }); }
+  function navigate(next: string) {
+    // Only internal paths are accepted, including the email-link return URL.
+    router.push(next.startsWith('/') && !next.startsWith('//') && !next.includes('\\') ? next : '/minhas-velas');
+  }
   const go = (next: string) => () => navigate(next);
-  const protectedPage = path === '/criar' || path === '/minhas-velas' || path.startsWith('/pagamento/') || path === '/moderacao';
 
-  return <>
+  return <AppContext.Provider value={{ user, authReady, navigate, setPageTitle: value => setTitle({ pathname, value }) }}>
+    <title>{title}</title>
     <header className="site-header"><div className="container nav-inner">
       <button className="brand" onClick={go('/')} aria-label="Vela Virtual, página inicial"><span className="brand-mark">✦</span><span>Vela <em>Virtual</em></span></button>
       <nav aria-label="Navegação principal"><button onClick={go('/#como-funciona')}>Como funciona</button><button onClick={go('/#planos')}>Planos</button>{user ? <button onClick={go('/minhas-velas')}>Minhas velas</button> : <button onClick={go('/entrar')}>Entrar</button>}</nav>
       <Button onClick={go(user ? '/criar' : '/entrar?next=/criar')} className="nav-cta">Acender uma vela <span aria-hidden>↗</span></Button>
     </div></header>
     {demoMode && <div className="demo-banner">Prévia local: dados ficam neste navegador e pagamentos são simulados.</div>}
-    {!configured && <div className="setup-banner">Configure o Firebase em <code>web/.env</code> para usar o aplicativo.</div>}
-    <main>
-      {path === '/' && <Home navigate={navigate} user={Boolean(user)} />}
-      {path === '/entrar' && <AuthScreen navigate={navigate} onSignedIn={() => setUser(auth?.currentUser || null)} />}
-      {path.startsWith('/v/') && <CandlePage id={path.split('/')[2]} navigate={navigate} isOwner={Boolean(user)} />}
-      {protectedPage && !authReady && <div className="container loading-screen">Preparando sua experiência…</div>}
-      {protectedPage && authReady && !user && <AuthScreen navigate={navigate} onSignedIn={() => setUser(auth?.currentUser || null)} />}
-      {protectedPage && authReady && user && path === '/criar' && <CreatePage navigate={navigate} />}
-      {protectedPage && authReady && user && path === '/minhas-velas' && <Dashboard navigate={navigate} userEmail={user.email || ''} />}
-      {protectedPage && authReady && user && path.startsWith('/pagamento/') && <PaymentPage id={path.split('/')[2]} navigate={navigate} />}
-      {protectedPage && authReady && user && path === '/moderacao' && <ModerationPage />}
-      {path === '/sobre' && <AboutPage />}
-    </main>
+    {!configured && <div className="setup-banner">Não foi possível conectar ao aplicativo. Tente novamente mais tarde.</div>}
+    <main>{children}</main>
     <footer className="site-footer"><div className="container footer-grid"><div><div className="brand footer-brand"><span className="brand-mark">✦</span><span>Vela <em>Virtual</em></span></div><p>Uma intenção compartilhada pode reunir muitas orações.</p></div><div><strong>Explore</strong><button onClick={go('/#como-funciona')}>Como funciona</button><button onClick={go('/#planos')}>Planos</button><button onClick={go('/sobre')}>Sobre o projeto</button></div><div><strong>Um gesto simbólico</strong><p>A vela virtual é uma expressão de fé e acolhimento. Não representa sacramento nem promessa de graça.</p></div></div><div className="container footer-bottom">© {new Date().getFullYear()} Vela Virtual · Nome provisório</div></footer>
-  </>;
+  </AppContext.Provider>;
 }
+
+function ProtectedPage({ children }: { children: ReactNode }) {
+  const { user, authReady } = useApp();
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  useEffect(() => {
+    if (authReady && !user) router.replace(`/entrar?next=${encodeURIComponent(pathname + (search ? `?${search}` : ''))}`);
+  }, [authReady, user, pathname, search, router]);
+  if (!authReady || !user) return <div className="container loading-screen">Preparando sua experiência…</div>;
+  return children;
+}
+
+export function HomeRoute() {
+  const { navigate, user } = useApp();
+  return <Home navigate={navigate} user={Boolean(user)} />;
+}
+export function AuthRoute() {
+  const { navigate } = useApp();
+  return <AuthScreen navigate={navigate} />;
+}
+export function CreateRoute() {
+  const { navigate } = useApp();
+  return <ProtectedPage><CreatePage navigate={navigate} /></ProtectedPage>;
+}
+export function DashboardRoute() {
+  const { navigate, user } = useApp();
+  return <ProtectedPage><Dashboard navigate={navigate} userEmail={user?.email || ''} /></ProtectedPage>;
+}
+export function CandleRoute({ id }: { id: string }) {
+  const { navigate, user } = useApp();
+  return <CandlePage id={id} navigate={navigate} isOwner={Boolean(user)} />;
+}
+export function PaymentRoute({ id }: { id: string }) {
+  const { navigate } = useApp();
+  return <ProtectedPage><PaymentPage id={id} navigate={navigate} /></ProtectedPage>;
+}
+export function ModerationRoute() { return <ProtectedPage><ModerationPage /></ProtectedPage>; }
+export function AboutRoute() { return <AboutPage />; }
 
 function Home({ navigate, user }: { navigate: (path: string) => void; user: boolean }) {
   useEffect(() => { if (location.hash) setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }), 50); }, []);
@@ -101,20 +144,23 @@ function Home({ navigate, user }: { navigate: (path: string) => void; user: bool
     <section className="intro-strip"><div className="container intro-inner"><span className="ornament">✦</span><p>Não importa a distância. Quando uma intenção é compartilhada, ninguém precisa rezar sozinho.</p><span className="ornament">✦</span></div></section>
     <section className="how-section section" id="como-funciona"><div className="container"><div className="section-heading"><span className="eyebrow">Simples como uma oração</span><h2>Um gesto de fé em <em>três passos</em></h2><p>Crie um espaço para sua intenção e acolha cada pessoa que chegar pelo link.</p></div><div className="steps-grid"><article className="step-card"><span className="step-icon">✍</span><span className="step-number">01</span><h3>Escreva sua intenção</h3><p>Conte por quem ou pelo que você deseja rezar. Use palavras simples e respeite a privacidade de outras pessoas.</p></article><article className="step-card"><span className="step-icon">↗</span><span className="step-number">02</span><h3>Compartilhe o link</h3><p>Envie pelo WhatsApp para familiares e amigos. Sua vela não aparece em mural público nem em buscas.</p></article><article className="step-card"><span className="step-icon">♡</span><span className="step-number">03</span><h3>Rezem juntos</h3><p>Quem recebe o link pode marcar que rezou e deixar uma mensagem de apoio, sem precisar criar conta.</p></article></div></div></section>
     <section className="quote-band"><div className="container quote-inner"><span className="quote-mark">“</span><p>Onde dois ou três estiverem reunidos em meu nome, ali estou eu no meio deles.</p><span>Mateus 18,20</span></div></section>
-    <section className="plans-section section" id="planos"><div className="container"><div className="section-heading"><span className="eyebrow">Escolha sua jornada</span><h2>Uma vela para cada <em>momento</em></h2><p>Toda oração tem o mesmo valor. Os planos pagos oferecem mais tempo e personalização para a sua página.</p></div><div className="plans-grid">{plans.map(plan => <article key={plan.id} className={`plan-card ${plan.id === 'novena' ? 'plan-card--featured' : ''}`}><div className="plan-upper">{plan.id === 'novena' && <span className="plan-badge">Mais escolhida</span>}<span className="plan-symbol">{plan.id === 'free' ? '✦' : plan.id === 'novena' ? '✧' : '✺'}</span><h3>{plan.name}</h3><p>{plan.note}</p></div><div className="plan-price">{plan.price}<span>{plan.id !== 'free' && ' / ciclo'}</span></div><div className="plan-duration"><strong>{plan.days} dias</strong> de vela acesa</div><ul><li>Intenção compartilhada por link</li><li>Registros de oração e apoio</li><li>{plan.feature}</li></ul><Button variant={plan.id === 'novena' ? 'primary' : 'secondary'} onClick={() => navigate(`${user ? '/criar' : '/entrar?next=/criar'}?plan=${plan.id}`)}>{plan.id === 'free' ? 'Começar gratuitamente' : 'Escolher este plano'} <span aria-hidden>→</span></Button></article>)}</div><p className="plans-footnote">Pagamento único por ciclo via PIX. Sem renovação automática. A doação ao fim é sempre opcional.</p></div></section>
+    <section className="plans-section section" id="planos"><div className="container"><div className="section-heading"><span className="eyebrow">Escolha sua jornada</span><h2>Uma vela para cada <em>momento</em></h2><p>Toda oração tem o mesmo valor. Os planos pagos oferecem mais tempo e personalização para a sua página.</p></div><div className="plans-grid">{plans.map(plan => <article key={plan.id} className={`plan-card ${plan.id === 'novena' ? 'plan-card--featured' : ''}`}><div className="plan-upper">{plan.id === 'novena' && <span className="plan-badge">Mais escolhida</span>}<span className="plan-symbol">{plan.id === 'free' ? '✦' : plan.id === 'novena' ? '✧' : '✺'}</span><h3>{plan.name}</h3><p>{plan.note}</p></div><div className="plan-price">{plan.price}<span>{plan.id !== 'free' && ' / ciclo'}</span></div><div className="plan-duration"><strong>{plan.days} dias</strong> de vela acesa</div><ul><li>Intenção compartilhada por link</li><li>Registros de oração e apoio</li><li>{plan.feature}</li></ul><Button variant={plan.id === 'novena' ? 'primary' : 'secondary'} onClick={() => navigate(user ? `/criar?plan=${plan.id}` : `/entrar?next=${encodeURIComponent(`/criar?plan=${plan.id}`)}`)}>{plan.id === 'free' ? 'Começar gratuitamente' : 'Escolher este plano'} <span aria-hidden>→</span></Button></article>)}</div><p className="plans-footnote">Pagamento único por ciclo via PIX. Sem renovação automática. A doação ao fim é sempre opcional.</p></div></section>
     <section className="closing-section"><div className="container closing-inner"><div><span className="eyebrow">Acenda uma luz</span><h2>Uma pequena chama pode reunir <em>muitos corações.</em></h2><p>Comece gratuitamente e convide quem caminha com você.</p><Button onClick={create}>Criar minha vela <span aria-hidden>↗</span></Button></div><Flame small /></div></section>
   </>;
 }
 
-function AuthScreen({ navigate, onSignedIn }: { navigate: (path: string) => void; onSignedIn: () => void }) {
+function AuthScreen({ navigate }: { navigate: (path: string) => void }) {
   const [email, setEmail] = useState(''); const [sent, setSent] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  const next = new URLSearchParams(location.search).get('next') || '/minhas-velas';
+  const completingSignIn = useRef(false);
+  const requestedNext = useSearchParams().get('next') || '/minhas-velas';
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') && !requestedNext.includes('\\') ? requestedNext : '/minhas-velas';
   useEffect(() => {
-    if (!auth || !isSignInWithEmailLink(auth, location.href)) return;
+    if (!auth || completingSignIn.current || !isSignInWithEmailLink(auth, location.href)) return;
     const stored = localStorage.getItem('vela-email') || prompt('Confirme seu e-mail para concluir a entrada:') || '';
     if (!stored) return;
+    completingSignIn.current = true;
     setBusy(true);
-    signInWithEmailLink(auth, stored, location.href).then(() => { localStorage.removeItem('vela-email'); onSignedIn(); navigate(next); }).catch(err => setError(err.message)).finally(() => setBusy(false));
+    signInWithEmailLink(auth, stored, location.href).then(() => { localStorage.removeItem('vela-email'); navigate(next); }).catch(err => setError(err.message)).finally(() => setBusy(false));
   }, []);
   async function submit(event: FormEvent) {
     event.preventDefault(); setError('');
@@ -132,7 +178,7 @@ function AuthScreen({ navigate, onSignedIn }: { navigate: (path: string) => void
 }
 
 function CreatePage({ navigate }: { navigate: (path: string) => void }) {
-  const queryPlan = new URLSearchParams(location.search).get('plan') as PlanId | null;
+  const queryPlan = useSearchParams().get('plan') as PlanId | null;
   const [plan, setPlan] = useState<PlanId>(plans.some(item => item.id === queryPlan) ? queryPlan! : 'free');
   const [title, setTitle] = useState(''); const [intention, setIntention] = useState('');
   const [saintId, setSaintId] = useState('maria'); const [theme, setTheme] = useState('classic');
@@ -175,10 +221,11 @@ function Dashboard({ navigate, userEmail }: { navigate: (path: string) => void; 
 }
 
 function CandlePage({ id, navigate, isOwner }: { id: string; navigate: (path: string) => void; isOwner: boolean }) {
+  const { setPageTitle } = useApp();
   const [candle, setCandle] = useState<Candle | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [name, setName] = useState(''); const [message, setMessage] = useState(''); const [feedback, setFeedback] = useState('');
-  async function load() { try { const result = await api<{ candle: Candle }>(`/v/${id}`); setCandle(result.candle); document.title = `${result.candle.title} · Vela Virtual`; } catch (err) { setError(err instanceof Error ? err.message : 'Vela não encontrada.'); } }
-  useEffect(() => { load(); const meta = document.createElement('meta'); meta.name = 'robots'; meta.content = 'noindex, nofollow, noarchive'; document.head.appendChild(meta); return () => { meta.remove(); document.title = 'Vela Virtual'; }; }, [id]);
+  async function load() { try { const result = await api<{ candle: Candle }>(`/v/${id}`); setCandle(result.candle); setPageTitle(`${result.candle.title} · Vela Virtual`); } catch (err) { setError(err instanceof Error ? err.message : 'Vela não encontrada.'); } }
+  useEffect(() => { load(); }, [id]);
   async function pray() { setBusy(true); setFeedback(''); try { const result = await api<{ counted: boolean }>(`/v/${id}/pray`, 'POST', { browserId: browserId() }); setFeedback(result.counted ? 'Seu gesto de oração foi registrado. Obrigado por estar aqui.' : 'Sua oração já foi registrada neste ciclo.'); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Falha ao registrar.'); } finally { setBusy(false); } }
   async function sendMessage(event: FormEvent) { event.preventDefault(); setBusy(true); setFeedback(''); try { const result = await api<{ message: string }>(`/v/${id}/messages`, 'POST', { browserId: browserId(), name: name || 'Alguém que rezou', text: message }); setFeedback(result.message); setMessage(''); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Falha ao enviar.'); } finally { setBusy(false); } }
   async function report() { const reason = prompt('Conte brevemente por que esta vela precisa de revisão:'); if (!reason) return; try { await api(`/v/${id}/reports`, 'POST', { browserId: browserId(), reason }); setFeedback('Denúncia recebida. Nossa equipe fará a revisão.'); } catch (err) { setError(err instanceof Error ? err.message : 'Falha ao denunciar.'); } }

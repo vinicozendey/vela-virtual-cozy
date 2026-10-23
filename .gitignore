@@ -12,3 +12,7 @@ firepit-log.txt
 .firebase-config/
 *.local
 
+.next/
+next-env.d.ts
+out/
+.dependencies-before-next/

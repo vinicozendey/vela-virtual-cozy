@@ -1,20 +1,42 @@
 {
   "name": "vela-virtual",
   "private": true,
+  "engines": {
+    "node": "22 || 24"
+  },
   "workspaces": [
     "web",
     "functions"
   ],
   "scripts": {
-    "dev": "npm run dev -w web",
-    "build": "npm run build -w web && npm run check -w functions",
-    "check": "npm run check -w web && npm run check -w functions",
-    "test": "npm run test -w functions",
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "check": "tsc --noEmit && npm run check -w functions",
+    "test": "node --experimental-strip-types --test test/*.test.mjs && npm run test -w functions",
     "emulators": "firebase emulators:start",
     "smoke": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node scripts/smoke-emulator.mjs",
-    "deploy": "npm run build && firebase deploy"
+    "start": "next start --hostname 0.0.0.0",
+    "apphosting:build": "next build",
+    "deploy:core": "npm run check -w functions && firebase deploy --only functions:api,functions:closeCycles,functions:dailySummaries,firestore --project vela-virtual-cozy",
+    "deploy:backend": "npm run check -w functions && firebase deploy --only functions,firestore --project vela-virtual-cozy",
+    "deploy:web": "firebase deploy --only apphosting:vela-virtual-cozy-web-app --project vela-virtual-cozy",
+    "deploy": "npm run build && npm run deploy:backend && npm run deploy:web",
+    "smoke:web": "node scripts/smoke-next.mjs"
   },
   "devDependencies": {
-    "firebase-tools": "^15.34.0"
-  }
+    "firebase-tools": "^15.34.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "firebase": "12.11.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "next": "16.4.2"
+  },
+  "type": "module"
 }

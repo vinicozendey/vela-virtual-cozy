@@ -14,8 +14,9 @@ initializeApp();
 const db = getFirestore();
 const abacateKey = defineSecret('ABACATE_API_KEY');
 const webhookSecret = defineSecret('ABACATE_WEBHOOK_SECRET');
-const emailKey = defineSecret('EMAIL_API_KEY');
-const emailFrom = defineSecret('EMAIL_FROM');
+const productEmailsEnabled = process.env.ENABLE_PRODUCT_EMAILS === 'true';
+const emailKey = productEmailsEnabled ? defineSecret('EMAIL_API_KEY') : null;
+const emailFrom = productEmailsEnabled ? defineSecret('EMAIL_FROM') : null;
 const region = 'southamerica-east1';
 const now = () => Date.now();
 const publicBase = () => process.env.PUBLIC_BASE_URL || 'http://127.0.0.1:5173';
@@ -480,7 +481,7 @@ export const dailySummaries = onSchedule({ schedule: '0 18 * * *', timeZone: 'Am
   }
 });
 
-export const deliverEmail = onSchedule({ schedule: 'every 5 minutes', region, secrets: [emailKey, emailFrom] }, async () => {
+export const deliverEmail = productEmailsEnabled ? onSchedule({ schedule: 'every 5 minutes', region, secrets: [emailKey, emailFrom] }, async () => {
   const jobs = await db.collection('emailJobs').where('state', '==', 'pending').limit(50).get();
   for (const job of jobs.docs) {
     try {
@@ -491,4 +492,4 @@ export const deliverEmail = onSchedule({ schedule: 'every 5 minutes', region, se
       await job.ref.update({ attempts: FieldValue.increment(1), lastErrorAt: now() });
     }
   }
-});
+}) : undefined;

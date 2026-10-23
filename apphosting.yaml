@@ -1,0 +1,22 @@
+# Keep the backend's app root as /; Firebase detects Next.js in package.json.
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  cpu: 1
+  memoryMiB: 512
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: vela-virtual-cozy
+    availability: [BUILD]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: vela-virtual-cozy.firebaseapp.com
+    availability: [BUILD]
+  - variable: NEXT_PUBLIC_DEMO_MODE
+    value: "false"
+    availability: [BUILD]
+  - variable: NEXT_PUBLIC_USE_EMULATORS
+    value: "false"
+    availability: [BUILD, RUNTIME]
+  - variable: API_UPSTREAM
+    value: https://southamerica-east1-vela-virtual-cozy.cloudfunctions.net/api
+    availability: [RUNTIME]
