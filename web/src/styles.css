@@ -12,3 +12,24 @@
 .donation-presets button.selected{border-color:#94583f;background:#f2e2d4}
 
 .pix-qr{margin:20px 0 24px}.pix-qr .qr-code{width:240px;height:240px;margin:0 auto 10px;padding:12px;image-rendering:pixelated}.pix-qr figcaption{font-size:.84rem;color:#75685d;line-height:1.5}
+
+.story-dialog{border:1px solid #e3d1bf;border-radius:24px;background:#fffaf3;color:#3b342c;padding:0;width:min(900px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 25px 90px #3b241e40}
+.story-dialog::backdrop{background:#30251ed1}
+.story-dialog-inner{position:relative;display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);align-items:center;gap:36px;padding:40px}
+.story-dialog .modal-close{z-index:1;top:10px;right:12px}
+.story-preview{aspect-ratio:9/16;background:#f3e6d2;border:1px solid #e3d1bf;border-radius:14px;overflow:hidden;display:grid;place-items:center;box-shadow:0 12px 28px #72553b18}
+.story-preview img{display:block;width:100%;height:100%;object-fit:contain}
+.story-preview>p{text-align:center;padding:24px;color:#786759}
+.story-controls h2{font-size:2rem;font-weight:500;margin:12px 0 16px}
+.story-controls>p{color:#786759;font-size:.9rem}
+.story-actions{display:grid;gap:10px;margin:22px 0 16px}
+.story-actions a{text-decoration:none}
+.story-instructions{border-top:1px solid #e3d1bf;padding-top:18px;font-size:.84rem;color:#786759}
+.story-instructions strong{color:#774430}
+.story-instructions p{margin:8px 0}
+.story-instructions span{font-size:.75rem}
+.story-link{font-size:.78rem;margin-top:16px}
+.story-link input{font-size:.8rem;padding:10px}
+.story-controls .notice,.story-controls .error-note{margin:14px 0 0;font-size:.82rem}
+.story-dialog button:focus-visible,.story-dialog a:focus-visible{outline:3px solid #b87552;outline-offset:3px}
+@media(max-width:650px){.story-dialog-inner{grid-template-columns:1fr;gap:24px;padding:42px 22px 24px}.story-preview{width:min(100%,240px);justify-self:center}.story-controls h2{font-size:1.8rem}.story-controls .eyebrow{font-size:.68rem}}
