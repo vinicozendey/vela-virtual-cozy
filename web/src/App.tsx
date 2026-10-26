@@ -29,8 +29,9 @@ function saintName(id: string | null) { return saints.find(s => s.id === id)?.na
 
 function Flame({ small = false, theme = 'classic' }: { small?: boolean; theme?: string }) {
   return <div className={`candle-art ${small ? 'candle-art--small' : ''} candle-art--${theme}`} aria-hidden="true">
+    <div className="wax"><span className="wax-drip wax-drip-a" /><span className="wax-drip wax-drip-b" /></div>
     <div className="flame-glow" /><div className="flame-outer"><div className="flame-inner" /></div>
-    <div className="wick" /><div className="wax"><span className="wax-drip wax-drip-a" /><span className="wax-drip wax-drip-b" /></div>
+    <div className="wick" />
     <div className="candle-shadow" />
   </div>;
 }
