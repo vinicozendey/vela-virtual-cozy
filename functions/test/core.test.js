@@ -15,6 +15,22 @@ test('free candle ignores paid decoration and rejects empty intention', () => {
   assert.throws(() => validateCandle({ plan: 'free', title: 'X', intention: 'Oi' }));
 });
 
+test('paid candles accept every saint offered in the creation form', () => {
+  const saintIds = ['maria', 'jose', 'francisco', 'terezinha', 'rita_cassia', 'antonio', 'aparecida', 'guadalupe', 'judas_tadeu', 'jorge', 'padre_pio', 'acutis'];
+  for (const plan of ['novena', 'quaresma']) {
+    for (const saintId of saintIds) {
+      const candle = validateCandle({ plan, title: 'Por minha família', intention: 'Pela saúde de todos', saintId, theme: 'rose' });
+      assert.equal(candle.saintId, saintId);
+    }
+    for (const saintId of ['', 'desconhecido']) {
+      assert.throws(
+        () => validateCandle({ plan, title: 'Por minha família', intention: 'Pela saúde de todos', saintId }),
+        error => error.status === 400 && error.message === 'Escolha um santo.',
+      );
+    }
+  }
+});
+
 test('renewed cycle begins at provided boundary with no lost days', () => {
   const start = Date.UTC(2026, 9, 20);
   const cycle = nextCycle('novena', start);

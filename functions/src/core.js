@@ -8,10 +8,12 @@ export const PLANS = Object.freeze({
 });
 
 export const SAINTS = Object.freeze([
-  { id: 'maria', name: 'Nossa Senhora' },
-  { id: 'jose', name: 'São José' },
-  { id: 'francisco', name: 'São Francisco de Assis' },
-  { id: 'terezinha', name: 'Santa Teresinha' },
+  { id: 'maria', name: 'Nossa Senhora' }, { id: 'jose', name: 'São José' },
+  { id: 'francisco', name: 'São Francisco de Assis' }, { id: 'terezinha', name: 'Santa Teresinha' },
+  { id: 'rita_cassia', name: 'Santa Rita de Cássia' }, { id: 'antonio', name: 'Santo Antônio' },
+  { id: 'aparecida', name: 'Nossa Senhora Aparecida' }, { id: 'guadalupe', name: 'Nossa Senhora de Guadalupe' },
+  { id: 'judas_tadeu', name: 'São Judas Tadeu' }, { id: 'jorge', name: 'São Jorge' },
+  { id: 'padre_pio', name: 'Padre Pio' }, { id: 'acutis', name: 'São Carlo Acutis' },
 ]);
 
 export class AppError extends Error {
