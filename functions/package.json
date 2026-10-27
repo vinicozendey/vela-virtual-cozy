@@ -8,7 +8,7 @@
     "node": "22"
   },
   "scripts": {
-    "check": "node --check src/index.js && node --check src/core.js",
+    "check": "node --check src/index.js && node --check src/core.js && node --check src/mail.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

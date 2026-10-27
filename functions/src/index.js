@@ -8,7 +8,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { AppError, PLANS, SAINTS, assert, cleanText, newId, nextCycle, prayerId, reviewReason, safeEqual, validateCandle, validateDonationAmount } from './core.js';
 import { checkPixCharge, createPixCharge } from './payments.js';
-import { sendServiceEmail } from './mail.js';
+import { candleLitEmail, sendServiceEmail } from './mail.js';
 
 initializeApp();
 const db = getFirestore();
@@ -109,7 +109,7 @@ async function createCandle(req, res) {
     common.currentCycle = input.reviewReason ? null : nextCycle('free', createdAt);
     common.nextExpirationAt = common.currentCycle?.endsAt || null;
     await db.collection('candles').doc(candleId).set(common);
-    if (!input.reviewReason) await queueEmail(`created-${candleId}`, { to: user.email, subject: 'Sua vela está acesa', text: `Sua vela foi criada. Compartilhe: ${publicBase()}/v/${candleId}` });
+    if (!input.reviewReason) await queueEmail(`created-${candleId}`, candleLitEmail({ candleId, candle: common, publicBase: publicBase() }));
     return send(res, 201, { candle: ownerCandle(candleId, common) });
   }
   if (input.reviewReason) {
@@ -188,6 +188,10 @@ async function finishOrder(orderId, eventId = null) {
     if (current.type === 'candle') {
       const cycle = nextCycle(current.plan, paidAt);
       tx.update(candleRef, { status: 'active', currentCycle: cycle, nextExpirationAt: cycle.endsAt, activatedAt: paidAt });
+      tx.create(db.collection('emailJobs').doc(`paid-${orderId}`), {
+        ...candleLitEmail({ candleId: current.candleId, candle: { ...candle, currentCycle: cycle }, publicBase: publicBase() }),
+        state: 'pending', createdAt: paidAt, attempts: 0,
+      });
     } else if (current.type === 'renewal') {
       if (candle.status === 'active' && candle.currentCycle.endsAt <= paidAt) {
         const old = candle.currentCycle;
@@ -207,7 +211,7 @@ async function finishOrder(orderId, eventId = null) {
     } else assert(current.type === 'donation', 409, 'Tipo de pedido inválido.');
     tx.update(ref, { status: 'paid', paidAt, eventId });
   });
-  if (disposition === 'paid' && order.type !== 'donation') await queueEmail(`paid-${orderId}`, { to: order.ownerEmail, subject: 'Seu PIX foi confirmado', text: `Sua vela está pronta para compartilhar: ${publicBase()}/v/${order.candleId}` });
+  if (disposition === 'paid' && order.type === 'renewal') await queueEmail(`paid-${orderId}`, { to: order.ownerEmail, subject: 'Seu PIX foi confirmado', text: `Sua vela está pronta para compartilhar: ${publicBase()}/v/${order.candleId}` });
   return disposition;
 }
 
@@ -391,7 +395,7 @@ async function adminAction(req, res, path) {
       const status = original.plan === 'free' ? 'active' : original.currentCycle ? 'active' : 'pending_payment';
       const cycle = status === 'active' && !original.currentCycle ? nextCycle('free', now()) : null;
       await ref.update({ status, reviewReason: null, moderatedBy: user.uid, moderatedAt: now(), ...(cycle ? { currentCycle: cycle, nextExpirationAt: cycle.endsAt } : {}) });
-      if (cycle) await queueEmail(`created-${candle[1]}`, { to: original.ownerEmail, subject: 'Sua vela está acesa', text: `Sua vela foi aprovada e está pronta: ${publicBase()}/v/${candle[1]}` });
+      if (cycle) await queueEmail(`created-${candle[1]}`, candleLitEmail({ candleId: candle[1], candle: { ...original, currentCycle: cycle }, publicBase: publicBase() }));
     }
     return send(res, 200, { ok: true });
   }
@@ -486,7 +490,12 @@ export const deliverEmail = onSchedule({ schedule: 'every 5 minutes', region, se
   const jobs = await db.collection('emailJobs').where('state', '==', 'pending').limit(50).get();
   for (const job of jobs.docs) {
     try {
-      await sendServiceEmail({ key: emailKey.value(), from: emailFrom.value(), to: job.data().to, subject: job.data().subject, text: job.data().text, idempotencyKey: job.id });
+      const data = job.data();
+      await sendServiceEmail({
+        key: emailKey.value(), from: emailFrom.value(), to: data.to, subject: data.subject,
+        text: data.text, idempotencyKey: job.id,
+        ...(data.kind === 'candle_lit' ? { template: { id: process.env.EMAIL_CANDLE_LIT_TEMPLATE_ID, variables: data.variables } } : {}),
+      });
       await job.ref.update({ state: 'sent', sentAt: now() });
     } catch (error) {
       logger.error('Email delivery failed', { jobId: job.id, error });
