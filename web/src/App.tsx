@@ -101,7 +101,35 @@ export function AppShell({ children }: { children: ReactNode }) {
     {demoMode && <div className="demo-banner">Prévia local: dados ficam neste navegador e pagamentos são simulados.</div>}
     {!configured && <div className="setup-banner">Não foi possível conectar ao aplicativo. Tente novamente mais tarde.</div>}
     <main>{children}</main>
-    <footer className="site-footer"><div className="container footer-grid"><div><div className="brand footer-brand"><span className="brand-mark">✦</span><span>Vela <em>Virtual</em></span></div><p>Uma intenção compartilhada pode reunir muitas orações.</p><address className="footer-contact"><a href="mailto:contato@velavirtual.app.br">contato@velavirtual.app.br</a><a href="https://wa.me/5527981419228" target="_blank" rel="noopener noreferrer">WhatsApp: (27) 98141-9228</a></address></div><div><strong>Explore</strong><button onClick={go('/#como-funciona')}>Como funciona</button><button onClick={go('/#planos')}>Planos</button><button onClick={go('/sobre')}>Sobre o projeto</button><Link href="/politicas-de-privacidade">Políticas de Privacidade</Link><Link href="/termos-de-uso">Termos de Uso</Link></div><div><strong>Um gesto simbólico</strong><p>A vela virtual é uma expressão de fé e acolhimento. Não representa sacramento nem promessa de graça.</p></div></div><div className="container footer-bottom">© {new Date().getFullYear()} Vela Virtual<p>CNPJ: 69.745.562/0001-60 · CONFRARIA TECH INOVA SIMPLES (I.S.)</p></div></footer>
+    <footer className="site-footer">
+      <div className="container footer-grid"><div>
+        <div className="brand footer-brand">
+          <span className="brand-mark">✦</span>
+          <span>Vela <em>Virtual</em></span>
+        </div><p>Uma intenção compartilhada pode reunir muitas orações.</p>
+          <address className="footer-contact">
+            <a href="mailto:contato@velavirtual.app.br">contato@velavirtual.app.br</a>
+            {/* <a href="https://wa.me/5527981419228" target="_blank" rel="noopener noreferrer">WhatsApp: (27) 98141-9228</a> */}
+          </address>
+        </div>
+        <div>
+          <strong>Explore</strong>
+          <button onClick={go('/#como-funciona')}>Como funciona</button>
+          <button onClick={go('/#planos')}>Planos</button>
+          <button onClick={go('/sobre')}>Sobre o projeto</button>
+          <Link href="/politicas-de-privacidade">Políticas de Privacidade</Link>
+          <Link href="/termos-de-uso">Termos de Uso</Link>
+        </div>
+        <div>
+          <strong>Um gesto simbólico</strong>
+          <p>A vela virtual é uma expressão de fé e acolhimento. Não representa sacramento nem promessa de graça.</p>
+        </div>
+      </div>
+      <div className="container footer-bottom">
+        © {new Date().getFullYear()} Vela Virtual
+        <p>CNPJ: 69.745.562/0001-60 · CONFRARIA TECH INOVA SIMPLES (I.S.)</p>
+      </div>
+    </footer>
   </AppContext.Provider>;
 }
 
