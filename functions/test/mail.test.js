@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { candleLitEmail, sendServiceEmail } from '../src/mail.js';
+import { candleEndedEmail, candleLitEmail, emailTemplateForJob, sendServiceEmail } from '../src/mail.js';
 import { nextCycle } from '../src/core.js';
 
 test('activation template uses the actual cycle end in Brasilia for every plan', () => {
@@ -26,6 +26,42 @@ test('activation template uses the actual cycle end in Brasilia for every plan',
 });
 
 const credentials = { key: 'test-key', from: 'Vela <vela@example.com>', to: 'creator@example.com', subject: 'Sua vela está acesa', idempotencyKey: 'created-candle-123' };
+
+test('completed cycle email uses closed cycle dates and counts for every plan', () => {
+  for (const [plan, days] of [['free', 7], ['novena', 9], ['quaresma', 40]]) {
+    const cycle = nextCycle(plan, Date.parse('2026-10-28T01:30:00Z'));
+    const candle = {
+      ownerEmail: credentials.to, title: 'Minha intenção', prayerCount: 12, messageCount: 3,
+      currentCycle: nextCycle('novena', cycle.endsAt),
+    };
+    const job = candleEndedEmail({ candleId: '123', candle, cycle, publicBase: 'https://vela.example///' });
+    assert.equal(job.kind, 'candle_ended');
+    assert.equal(job.to, credentials.to);
+    assert.deepEqual(job.variables, {
+      TITULO_VELA: candle.title, DURACAO_DIAS: days,
+      DATA_ENCERRAMENTO: new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo', dateStyle: 'long', timeStyle: 'short',
+      }).format(new Date(cycle.endsAt)) + ' (Brasília)',
+      TOTAL_ORACOES: 12, TOTAL_MENSAGENS: 3,
+      URL_VELA: 'https://vela.example/v/123',
+      URL_MINHAS_VELAS: 'https://vela.example/minhas-velas', URL_SITE: 'https://vela.example',
+    });
+    const empty = candleEndedEmail({ candleId: '123', candle: { ...candle, prayerCount: undefined, messageCount: undefined }, cycle, publicBase: 'https://vela.example' });
+    assert.equal(empty.variables.TOTAL_ORACOES, 0);
+    assert.equal(empty.variables.TOTAL_MENSAGENS, 0);
+  }
+});
+
+test('activation and completion select independent templates while legacy jobs keep plain text', () => {
+  const env = { EMAIL_CANDLE_LIT_TEMPLATE_ID: 'vela-acesa-1', EMAIL_CANDLE_ENDED_TEMPLATE_ID: 'vela-concluda' };
+  for (const [kind, id] of [['candle_lit', 'vela-acesa-1'], ['candle_ended', 'vela-concluda']]) {
+    const variables = { TITULO_VELA: 'Minha intenção' };
+    assert.deepEqual(emailTemplateForJob({ kind, variables }, env), { id, variables });
+  }
+  assert.equal(emailTemplateForJob({ text: 'Mensagem antiga' }, env), undefined);
+  assert.throws(() => emailTemplateForJob({ kind: 'candle_ended' }, {}), /EMAIL_CANDLE_ENDED_TEMPLATE_ID/);
+  assert.throws(() => emailTemplateForJob({ kind: 'candle_lit' }, {}), /EMAIL_CANDLE_LIT_TEMPLATE_ID/);
+});
 
 test('Resend receives the template and variables without text or HTML, preserving idempotency', async t => {
   const template = { id: 'vela-acesa', variables: { TITULO_VELA: 'Minha intenção' } };
@@ -53,7 +89,7 @@ test('legacy jobs and summaries still send plain text', async t => {
 
 test('missing template configuration fails before contacting Resend', async t => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Unexpected request'); });
-  await assert.rejects(sendServiceEmail({ ...credentials, template: { variables: {} } }), /EMAIL_CANDLE_LIT_TEMPLATE_ID/);
+  await assert.rejects(sendServiceEmail({ ...credentials, template: { variables: {} } }), /ID ou alias/);
   assert.equal(fetch.mock.callCount(), 0);
 });
 

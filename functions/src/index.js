@@ -8,7 +8,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { AppError, PLANS, SAINTS, assert, cleanText, newId, nextCycle, prayerId, reviewReason, safeEqual, validateCandle, validateDonationAmount } from './core.js';
 import { checkPixCharge, createPixCharge } from './payments.js';
-import { candleLitEmail, sendServiceEmail } from './mail.js';
+import { candleEndedEmail, candleLitEmail, emailTemplateForJob, sendServiceEmail } from './mail.js';
 
 initializeApp();
 const db = getFirestore();
@@ -197,8 +197,7 @@ async function finishOrder(orderId, eventId = null) {
         const old = candle.currentCycle;
         tx.create(candleRef.collection('cycles').doc(old.id), { ...old, prayerCount: candle.prayerCount || 0, messageCount: candle.messageCount || 0, closedAt: paidAt });
         tx.create(db.collection('emailJobs').doc(`ended-${current.candleId}-${old.id}`), {
-          to: candle.ownerEmail, subject: 'Seu ciclo de oração foi concluído',
-          text: `Sua vela “${candle.title}” concluiu ${PLANS[old.plan].days} dias. Recebeu ${candle.prayerCount || 0} registros de oração e ${candle.messageCount || 0} mensagens de apoio. Acesse ${publicBase()}/minhas-velas para acompanhar sua vela e, se desejar, fazer uma doação para a manutenção da plataforma.`,
+          ...candleEndedEmail({ candleId: current.candleId, candle, cycle: old, publicBase: publicBase() }),
           state: 'pending', createdAt: paidAt, attempts: 0,
         });
       }
@@ -464,8 +463,7 @@ export const closeCycles = onSchedule({ schedule: 'every 15 minutes', timeZone: 
       tx.create(snap.ref.collection('cycles').doc(cycle.id), { ...cycle, prayerCount: latest.data().prayerCount || 0, messageCount: latest.data().messageCount || 0, closedAt: now() });
       tx.update(snap.ref, scheduled ? { currentCycle: scheduled, scheduledCycle: null, nextExpirationAt: scheduled.endsAt, prayerCount: 0, messageCount: 0, status: 'active', lastCycleEndedAt: cycle.endsAt } : { status: 'ended', endedAt: now(), lastCycleEndedAt: cycle.endsAt, nextExpirationAt: FieldValue.delete() });
       tx.create(db.collection('emailJobs').doc(jobId), {
-        to: candle.ownerEmail, subject: 'Seu ciclo de oração foi concluído',
-        text: `Sua vela “${candle.title}” concluiu ${PLANS[cycle.plan].days} dias. Recebeu ${candle.prayerCount || 0} registros de oração e ${candle.messageCount || 0} mensagens de apoio. Acesse ${publicBase()}/minhas-velas para acompanhar sua vela e, se desejar, fazer uma doação para a manutenção da plataforma.`,
+        ...candleEndedEmail({ candleId: snap.id, candle: latest.data(), cycle, publicBase: publicBase() }),
         state: 'pending', createdAt: now(), attempts: 0,
       });
     });
@@ -494,7 +492,7 @@ export const deliverEmail = onSchedule({ schedule: 'every 5 minutes', region, se
       await sendServiceEmail({
         key: emailKey.value(), from: emailFrom.value(), to: data.to, subject: data.subject,
         text: data.text, idempotencyKey: job.id,
-        ...(data.kind === 'candle_lit' ? { template: { id: process.env.EMAIL_CANDLE_LIT_TEMPLATE_ID, variables: data.variables } } : {}),
+        template: emailTemplateForJob(data),
       });
       await job.ref.update({ state: 'sent', sentAt: now() });
     } catch (error) {
