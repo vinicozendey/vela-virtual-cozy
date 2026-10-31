@@ -1,0 +1,83 @@
+<div id="flame-exploration">
+  <nav class="flame-picker" aria-label="Alternativas de chama">
+    <button type="button" data-choice="Orgânica" aria-pressed="true">Orgânica</button>
+    <button type="button" data-choice="Serena" aria-pressed="false">Serena</button>
+    <button type="button" data-choice="Radiante" aria-pressed="false">Radiante</button>
+  </nav>
+  <div class="viz-dotted-background flame-options" aria-live="polite">
+    <section data-variant="Orgânica" aria-label="Chama orgânica">
+      <div class="candle-preview organic" role="img" aria-label="Chama alongada com ponta oscilante e núcleo luminoso, sobre a vela atual">
+        <div class="drawing"><div class="halo"></div><div class="fire"><div class="core"></div></div><div class="wick"></div><div class="wax"></div></div>
+        <div class="caption"><h3>Orgânica</h3><p>Ponta viva · movimento delicado</p></div>
+      </div>
+    </section>
+    <section data-variant="Serena" aria-label="Chama serena" hidden>
+      <div class="candle-preview serene" role="img" aria-label="Chama fina em forma de gota, com movimento lento e brilho discreto">
+        <div class="drawing"><div class="halo"></div><div class="fire"><div class="core"></div></div><div class="wick"></div><div class="wax"></div></div>
+        <div class="caption"><h3>Serena</h3><p>Gota esguia · oscilação lenta</p></div>
+      </div>
+    </section>
+    <section data-variant="Radiante" aria-label="Chama radiante" hidden>
+      <div class="candle-preview radiant" role="img" aria-label="Chama arredondada com camadas suaves de luz e brilho pulsante">
+        <div class="drawing"><div class="halo"></div><div class="fire"><div class="core"></div></div><div class="wick"></div><div class="wax"></div></div>
+        <div class="caption"><h3>Radiante</h3><p>Luz difusa · brilho que respira</p></div>
+      </div>
+    </section>
+  </div>
+</div>
+<style>
+  #flame-exploration .flame-picker { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:12px 0; }
+  #flame-exploration .flame-picker button { font:inherit; min-height:44px; padding:10px 16px; border:1px solid #bc9f88; border-radius:10px; background:#fffaf2; color:#774430; }
+  #flame-exploration .flame-picker button[aria-pressed="true"] { background:#8d4939; color:#fff9f1; border-color:#8d4939; }
+  #flame-exploration [data-variant][hidden] { display:none!important; }
+  #flame-exploration .candle-preview { background:#faf7f0; color:#3b342c; border:1px solid #e9e0d3; border-radius:24px; width:min(400px,calc(100% - 32px)); margin:20px auto; padding:20px 20px 25px; text-align:center; font-family:'DM Sans',sans-serif; }
+  #flame-exploration .drawing { width:180px; height:270px; position:relative; margin:auto; }
+  #flame-exploration .wax { position:absolute; bottom:12px; left:49px; width:82px; height:132px; border-radius:9px 9px 15px 15px; background:linear-gradient(90deg,#d5bd94,#f6e6be 30%,#fff1ce 64%,#ddc49c); box-shadow:0 18px 20px #67412e20; }
+  #flame-exploration .wax:before { content:''; position:absolute; top:-5px; left:0; width:82px; height:15px; border-radius:50%; background:#fff1ce; box-shadow:inset 0 3px 6px #cba87640; }
+  #flame-exploration .wax:after { content:''; position:absolute; top:3px; left:15px; width:8px; height:28px; border-radius:0 0 6px 6px; background:#fff1ce; }
+  #flame-exploration .wick { position:absolute; left:88.5px; bottom:143px; width:3px; height:16px; background:#4b3328; border-radius:2px; z-index:2; }
+  #flame-exploration .halo { position:absolute; width:164px; height:180px; left:8px; bottom:102px; background:radial-gradient(ellipse, #ffb54555 0%,#ffbc6021 40%,transparent 70%); border-radius:50%; animation:preview-glow 3.7s ease-in-out infinite; }
+  #flame-exploration .fire { position:absolute; bottom:153px; left:70px; width:40px; height:77px; transform-origin:50% 100%; background:linear-gradient(0deg,#ed6328 0%,#ffb246 58%,#ffe3a1 100%); border-radius:75% 25% 50% 50% / 70% 60% 40% 30%; box-shadow:0 0 20px #fd953650; animation:preview-organic 3.7s ease-in-out infinite; }
+  #flame-exploration .core { position:absolute; bottom:3px; left:12px; width:17px; height:43px; background:linear-gradient(0deg,#fff1ae,#ffe3a1); border-radius:60% 40% 45% 55% / 75% 70% 30% 25%; transform-origin:50% 100%; animation:preview-core 2.3s ease-in-out infinite; }
+  #flame-exploration .serene .fire { width:29px; height:76px; left:75.5px; border-radius:80% 20% 52% 48% / 80% 60% 40% 20%; animation:preview-serene 5.5s ease-in-out infinite; box-shadow:0 0 14px #fd953640; }
+  #flame-exploration .serene .core { width:12px; height:38px; left:9px; }
+  #flame-exploration .serene .halo { opacity:.6; animation-duration:5.5s; }
+  #flame-exploration .radiant .fire { width:44px; height:71px; left:68px; border-radius:70% 30% 52% 48% / 75% 60% 40% 25%; filter:blur(.8px); animation:preview-radiant 3.2s ease-in-out infinite; box-shadow:0 0 15px #ffb24699,0 0 32px #fd953650; }
+  #flame-exploration .radiant .core { left:11px; width:22px; height:46px; filter:blur(2px); }
+  #flame-exploration .radiant .halo { background:radial-gradient(ellipse,#ffb54577, #ffbc6029 40%,transparent 70%); }
+  #flame-exploration .caption h3 { font-family:Georgia,serif; font-size:24px; font-weight:400; margin:8px 0; }
+  #flame-exploration .caption p { color:#6b6056; font-size:14px; margin:0; }
+  @keyframes preview-organic { 0%,100%{ transform:rotate(-3deg) scale(1,1);border-radius:75% 25% 50% 50% / 70% 60% 40% 30%; } 32%{transform:rotate(4deg) scale(.95,1.06);border-radius:30% 70% 48% 52% / 60% 80% 25% 40%;} 67%{transform:rotate(-1deg) scale(1.04,.97);border-radius:65% 35% 53% 47% / 80% 65% 35% 25%;} }
+  @keyframes preview-serene { 0%,100%{transform:rotate(-2deg) scaleY(1)} 50%{transform:rotate(2deg) scaleY(1.04)} }
+  @keyframes preview-radiant { 0%,100%{transform:rotate(-2deg) scale(1);opacity:.94} 40%{transform:rotate(3deg) scale(.96,1.06);opacity:1} 75%{transform:rotate(0deg) scale(1.03,.98);opacity:.92} }
+  @keyframes preview-core { 0%,100%{transform:scale(1)} 50%{transform:scale(.9,1.08)} }
+  @keyframes preview-glow { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.09,.97);opacity:.65} }
+  @media(prefers-reduced-motion:reduce){#flame-exploration .drawing *{animation:none!important}}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('flame-exploration');
+  root.querySelectorAll('[data-choice]').forEach(button => {
+    button.addEventListener('click', () => {
+      root.querySelectorAll('[data-variant]').forEach(panel => {
+        panel.hidden = panel.dataset.variant !== button.dataset.choice;
+      });
+      root.querySelectorAll('[data-choice]').forEach(option => {
+        option.setAttribute('aria-pressed', String(option === button));
+      });
+    });
+  });
+  const state = { speed: 1 };
+  function render() {
+    root.querySelectorAll('.fire, .core, .halo').forEach(el => {
+      const base = el.classList.contains('core') ? 2.3 : el.closest('.serene') ? 5.5 : el.closest('.radiant') && el.classList.contains('fire') ? 3.2 : 3.7;
+      el.style.animationDuration = (base / state.speed) + 's';
+    });
+  }
+  render();
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({container:root, onChange:render});
+    tweak.addSlider(state,'speed',{label:'Velocidade da chama',min:.5,max:1.5,step:.1});
+  }
+})();
+</script>
