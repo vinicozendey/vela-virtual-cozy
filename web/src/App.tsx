@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signOut, type User } from 'firebase/auth';
+import { GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithEmailLink, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { api, browserId } from './api';
 import { auth, configured, demoMode } from './firebase';
 import type { Candle, Order, PlanId, UserProfile } from './types';
@@ -187,6 +187,7 @@ function Home({ navigate, user }: { navigate: (path: string) => void; user: bool
 
 function AuthScreen({ navigate }: { navigate: (path: string) => void }) {
   const [email, setEmail] = useState(''); const [sent, setSent] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const [googleBusy, setGoogleBusy] = useState(false);
   const completingSignIn = useRef(false);
   const requestedNext = useSearchParams().get('next') || '/minhas-velas';
   const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') && !requestedNext.includes('\\') ? requestedNext : '/minhas-velas';
@@ -210,7 +211,42 @@ function AuthScreen({ navigate }: { navigate: (path: string) => void }) {
     } catch (err) { setError(err instanceof Error ? err.message : 'Falha ao enviar link.'); }
     finally { setBusy(false); }
   }
-  return <section className="form-section"><div className="container narrow"><div className="form-card auth-card"><span className="eyebrow">Seu espaço de oração</span><h1>Entre com seu <em>e-mail</em></h1><p>Enviaremos um link seguro para você criar e acompanhar suas velas. Sem senha para lembrar.</p>{sent ? <Notice>Enviamos um link para <strong>{email}</strong>. Abra o e-mail neste dispositivo para continuar.</Notice> : <form onSubmit={submit}><label>E-mail<input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="voce@exemplo.com" autoComplete="email" /></label><ErrorNote error={error} /><Button type="submit" disabled={busy}>{busy ? 'Enviando…' : demoMode ? 'Entrar na prévia' : 'Enviar link de acesso'} <span aria-hidden>→</span></Button></form>}<p className="micro-copy">Usaremos seu e-mail para acesso e mensagens necessárias sobre suas velas.</p></div></div></section>;
+  async function enterWithGoogle() {
+    if (busy || googleBusy) return;
+    setError('');
+    if (demoMode) { navigate(next); return; }
+    if (!auth) { setError('Não foi possível conectar. Tente novamente mais tarde.'); return; }
+    setGoogleBusy(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await signInWithPopup(auth, provider);
+      navigate(next);
+    } catch (err) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : '';
+      if (code === 'auth/popup-blocked') {
+        setError('Permita a abertura de pop-ups neste navegador para entrar com o Google.');
+      } else if (code === 'auth/account-exists-with-different-credential') {
+        setError('Este e-mail já usa outra forma de acesso. Entre pelo link enviado ao seu e-mail.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Confira sua conexão e tente entrar com o Google novamente.');
+      } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+        setError('Não foi possível entrar com o Google. Tente novamente ou use seu e-mail.');
+      }
+    } finally { setGoogleBusy(false); }
+  }
+  return <section className="form-section"><div className="container narrow"><div className="form-card auth-card">
+    <span className="eyebrow">Seu espaço de oração</span><h1>Entre no seu <em>espaço</em></h1>
+    <p>Use sua conta Google ou receba um link seguro por e-mail para criar e acompanhar suas velas. Sem senha para lembrar.</p>
+    <Button variant="secondary" className="google-sign-in" onClick={enterWithGoogle} disabled={busy || googleBusy}>
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.61 24.46c0-1.36-.12-2.66-.35-3.92H24v7.43h11a9.4 9.4 0 0 1-4.08 6.16v5h6.61c3.87-3.56 6.08-8.8 6.08-14.67Z" /><path fill="#34A853" d="M24 44c5.51 0 10.13-1.83 13.51-4.87l-6.61-5c-1.83 1.23-4.17 1.98-6.9 1.98-5.31 0-9.82-3.58-11.43-8.4H5.75v5.16A20.4 20.4 0 0 0 24 44Z" /><path fill="#FBBC05" d="M12.57 27.71a12.3 12.3 0 0 1 0-7.42v-5.16H5.75a20 20 0 0 0 0 17.74l6.82-5.16Z" /><path fill="#EA4335" d="M24 11.89c3 0 5.69 1.03 7.81 3.05l5.86-5.86C34.12 5.77 29.51 4 24 4A20.4 20.4 0 0 0 5.75 15.13l6.82 5.16c1.61-4.82 6.12-8.4 11.43-8.4Z" /></svg>
+      {googleBusy ? 'Entrando…' : 'Continuar com o Google'}
+    </Button>
+    <div className="auth-divider">ou entre por e-mail</div>
+    <ErrorNote error={error} />
+    {sent ? <Notice>Enviamos um link para <strong>{email}</strong>. Abra o e-mail neste dispositivo para continuar.</Notice> : <form onSubmit={submit}><label>E-mail<input type="email" required disabled={busy || googleBusy} value={email} onChange={event => setEmail(event.target.value)} placeholder="voce@exemplo.com" autoComplete="email" /></label><Button type="submit" disabled={busy || googleBusy}>{busy ? 'Enviando…' : demoMode ? 'Entrar na prévia' : 'Enviar link de acesso'} <span aria-hidden>→</span></Button></form>}
+    <p className="micro-copy">Usaremos seu e-mail para acesso e mensagens necessárias sobre suas velas.</p>
+  </div></div></section>;
 }
 
 function CreatePage({ navigate }: { navigate: (path: string) => void }) {

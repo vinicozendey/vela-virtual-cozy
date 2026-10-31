@@ -6,6 +6,11 @@
 .candle-display-bottom{margin:28px auto 0}
 @media (min-width:761px) and (max-width:1180px){.hero h1{font-size:clamp(3.1rem,4.2vw,4rem)}.hero-actions{gap:16px}.hero-copy>p{font-size:1rem}}
 @media (max-width:760px){.candle-display-bottom{margin:22px auto 0}}
+.auth-card .google-sign-in{width:100%;margin-top:20px;background:#fff;color:#3c4043;border:1px solid #dadce0;box-shadow:none;font-family:Arial,sans-serif;font-weight:500}
+.auth-card .google-sign-in:hover{background:#f8faff;border-color:#c1c8d0}
+.google-sign-in svg{flex:none}
+.auth-divider{display:flex;align-items:center;gap:14px;margin:24px 0 0;color:#988878;font-size:.8rem}
+.auth-divider:before,.auth-divider:after{content:"";flex:1;height:1px;background:#e8dbcd}
 .metrics-strip{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 27px}
 .metrics-strip span{display:flex;flex-direction:column;min-width:135px;flex:1;border:1px solid #e9ddce;border-radius:12px;background:#fffdfa;padding:13px 15px;color:#8b7969;font-size:.72rem}
 .metrics-strip strong{font-family:Fraunces,Georgia,serif;font-size:1.6rem;font-weight:500;color:#75503d}
