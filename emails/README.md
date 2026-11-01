@@ -21,6 +21,8 @@ Forneça todas as variáveis no envio. Use a data de término e os totais do cic
 
 O botão principal abre a página da vela. O link **Minhas velas** leva ao painel com as opções disponíveis e a doação é apresentada como voluntária. O layout mantém as tabelas, os estilos inline e os ajustes para celular e Outlook do template de ativação.
 
+O botão **Fazer uma doação voluntária** abre `{{{URL_SITE}}}/doar`, sem exigir login. A página permite escolher R$ 5, R$ 10, R$ 20 ou outro valor entre R$ 2 e R$ 1.000, gera o QR Code e o Pix Copia e Cola pela AbacatePay e agradece após a confirmação. Reimporte e publique o HTML atualizado no template `vela-concluda` do Resend para exibir esse botão nos próximos envios; as variáveis existentes continuam suficientes.
+
 Antes de publicar, envie uma prévia com os links reais e confira no celular e no desktop, incluindo título longo e totais zerados. O envio automático usa este template tanto em `closeCycles` quanto no encerramento durante a confirmação de uma renovação paga. Os dados são gravados na mesma transação do encerramento, com um trabalho por vela e ciclo. No agendador, os totais vêm da leitura mais recente da transação.
 
 ## Vela acesa

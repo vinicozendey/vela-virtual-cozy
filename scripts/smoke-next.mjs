@@ -37,7 +37,7 @@ try {
     await delay(100);
   }
   assert.ok(ready, `Next.js did not start. ${output}`);
-  for (const path of ['/', '/sobre', '/entrar?next=%2Fcriar%3Fplan%3Dnovena', '/criar?plan=novena', '/minhas-velas', '/moderacao', '/pagamento/test-order', '/v/test-candle']) {
+  for (const path of ['/', '/sobre', '/doar', '/doar/test-donation', '/entrar?next=%2Fcriar%3Fplan%3Dnovena', '/criar?plan=novena', '/minhas-velas', '/moderacao', '/pagamento/test-order', '/v/test-candle']) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200, path);
     const html = await response.text();
@@ -58,7 +58,7 @@ try {
   assert.deepEqual(await response.json(), {
     path: '/api/api/webhooks/abacate?webhookSecret=local%2Btest', method: 'POST', authorization: 'Bearer local-test', body: raw,
   });
-  console.log('Next.js smoke passed: 8 routes, 404, candle privacy headers, and API/webhook forwarding.');
+  console.log('Next.js smoke passed: 10 routes, 404, candle privacy headers, and API/webhook forwarding.');
 } finally {
   app.kill('SIGTERM');
   await exited;

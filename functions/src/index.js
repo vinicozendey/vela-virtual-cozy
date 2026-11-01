@@ -151,11 +151,24 @@ async function orderDetails(id, uid) {
   return { id, ...snap.data() };
 }
 
+// Public donation links contain an unguessable ID and never expose owner data.
+function publicDonation(order) {
+  const { id, type, amount, status, pixCode, qrCode, expiresAt } = order;
+  return { id, type, amount, status, pixCode: pixCode || '', qrCode: qrCode || '', expiresAt: expiresAt || null, candleId: null, plan: null };
+}
+
+async function donationDetails(id) {
+  const order = await orderDetails(id, null);
+  assert(order.type === 'donation' && order.candleId === null, 404, 'Doação não encontrada.');
+  return order;
+}
+
 async function finishOrder(orderId, eventId = null) {
   const ref = db.collection('orders').doc(orderId);
   const initial = await ref.get();
   assert(initial.exists, 404, 'Pedido não encontrado.');
   const order = initial.data();
+  if (['paid', 'refunded'].includes(order.status)) return order.status;
   if (order.status === 'review_required') return 'review_required';
   assert(order.providerId, 409, 'Cobrança ainda não preparada.');
   const providerStatus = await checkPixCharge(order.providerId, abacateKey.value());
@@ -170,6 +183,10 @@ async function finishOrder(orderId, eventId = null) {
     const current = snap.data();
     if (current.status === 'paid') return;
     assert(['pending', 'expired'].includes(current.status), 409, 'Pedido em estado incompatível.');
+    if (current.type === 'donation') {
+      tx.update(ref, { status: 'paid', paidAt: now(), eventId });
+      return;
+    }
     const candleRef = db.collection('candles').doc(current.candleId);
     const candleSnap = await tx.get(candleRef);
     assert(candleSnap.exists, 409, 'Vela do pedido não encontrada.');
@@ -219,6 +236,24 @@ async function route(req, res) {
   const method = req.method;
   if (method === 'GET' && path === '/catalog') return send(res, 200, { plans: PLANS, saints: SAINTS });
   if (method === 'POST' && path === '/webhooks/abacate') return handleWebhook(req, res);
+
+  if (method === 'POST' && path === '/donations') {
+    const amount = validateDonationAmount(bodyOf(req).amount);
+    await throttle(req, 'donation', 12);
+    const order = await openOrder({ ownerId: null, ownerEmail: null, candleId: null, type: 'donation', amount });
+    return send(res, 201, { order: publicDonation(order) });
+  }
+  const donationMatch = path.match(/^\/donations\/([A-Za-z0-9_-]{32})(\/reconcile)?$/);
+  if (donationMatch) {
+    let order = await donationDetails(donationMatch[1]);
+    if (method === 'POST' && donationMatch[2]) {
+      await throttle(req, 'donation-check', 600);
+      if (['pending', 'expired'].includes(order.status)) await finishOrder(order.id);
+      order = await donationDetails(order.id);
+      return send(res, 200, { order: publicDonation(order) });
+    }
+    if (method === 'GET' && !donationMatch[2]) return send(res, 200, { order: publicDonation(order) });
+  }
 
   const publicMatch = path.match(/^\/v\/([A-Za-z0-9_-]{32})$/);
   if (method === 'GET' && publicMatch) {

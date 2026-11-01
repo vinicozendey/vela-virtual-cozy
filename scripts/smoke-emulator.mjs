@@ -75,6 +75,38 @@ try {
   const paidId = paid.body.candle.id;
   const order = paid.body.order;
   assert.equal(order.amount, 490);
+  // Public donations need no login and must not expose authenticated orders.
+  assert.equal((await request(`/donations/${order.id}`, 'GET', undefined, false)).status, 404);
+  assert.equal((await request(`/donations/${order.id}/reconcile`, 'POST', undefined, false)).status, 404);
+  for (const amount of [199, 100001, 250.5]) {
+    assert.equal((await request('/donations', 'POST', { amount }, false)).status, 400);
+  }
+  const donation = await request('/donations', 'POST', { amount: 1000 }, false);
+  assert.equal(donation.status, 201, JSON.stringify(donation.body));
+  assert.equal(donation.body.order.amount, 1000);
+  assert.equal(donation.body.order.candleId, null);
+  for (const key of ['ownerId', 'ownerEmail', 'providerId']) assert.equal(key in donation.body.order, false);
+  const donationId = donation.body.order.id;
+  const donationCharge = [...charges.values()].find(charge => charge.amount === 1000);
+  assert.ok(donationCharge);
+  assert.equal((await request(`/donations/${donationId}/reconcile`, 'POST', undefined, false)).body.order.status, 'pending');
+  donationCharge.status = 'PAID';
+  const donationPaid = await request(`/donations/${donationId}/reconcile`, 'POST', undefined, false);
+  assert.equal(donationPaid.status, 200, JSON.stringify(donationPaid.body));
+  assert.equal(donationPaid.body.order.status, 'paid');
+  assert.equal((await request(`/donations/${donationId}/reconcile`, 'POST', undefined, false)).body.order.status, 'paid');
+  const another = await request('/donations', 'POST', { amount: 2000 }, false);
+  const anotherCharge = [...charges.values()].find(charge => charge.amount === 2000);
+  anotherCharge.status = 'EXPIRED';
+  assert.equal((await request(`/donations/${another.body.order.id}/reconcile`, 'POST', undefined, false)).body.order.status, 'expired');
+  anotherCharge.status = 'PAID';
+  const donationEvent = { id: randomUUID(), event: 'transparent.completed', data: { id: anotherCharge.id } };
+  const donationWebhook = '/webhooks/abacate?webhookSecret=local_webhook_secret';
+  assert.equal((await request(donationWebhook, 'POST', donationEvent, false)).status, 200);
+  assert.equal((await request(donationWebhook, 'POST', donationEvent, false)).status, 200);
+  assert.equal((await request(`/donations/${another.body.order.id}`, 'GET', undefined, false)).body.order.status, 'paid');
+  assert.equal((await request(donationWebhook, 'POST', { ...donationEvent, event: 'transparent.refunded' }, false)).status, 200);
+  assert.equal((await request(`/donations/${another.body.order.id}`, 'GET', undefined, false)).body.order.status, 'refunded');
   assert.equal((await request(`/v/${paidId}`, 'GET', undefined, false)).status, 404);
   charges.get(order.providerId).status = 'PAID';
   const webhookPath = '/webhooks/abacate?webhookSecret=local_webhook_secret';
@@ -94,5 +126,5 @@ try {
   const renewed = owned.body.candles.find(candle => candle.id === paidId);
   assert.equal(renewed.scheduledCycle.plan, 'quaresma');
   assert.equal(renewed.scheduledCycle.startsAt, active.body.candle.endsAt);
-  process.stdout.write('Emulator smoke test passed: auth, free candle, public link, prayer, message, edit, delete, PIX webhook, and sequential renewal.\n');
+  process.stdout.write('Emulator smoke test passed: candles, auth, renewal, public donation PIX, access isolation, amount limits, reconciliation, expiry, idempotent webhooks, and refunds.\n');
 } finally { await deleteApp(app); await new Promise(resolve => gateway.close(resolve)); }

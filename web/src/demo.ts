@@ -74,10 +74,15 @@ export function demoRequest(path: string, method: string, body: Record<string, u
     if (publicAction[2] === 'messages') { candle.messages.push({ id: id(), name: String(body.name || 'Alguém que rezou'), text: String(body.text), createdAt: Date.now() }); put(CANDLES, all); return { message: 'Mensagem publicada.' }; }
     return { ok: true };
   }
-  const orderMatch = path.match(/^\/me\/orders\/([^/]+)(\/reconcile)?$/);
+  if (path === '/donations' && method === 'POST') {
+    const amount = Number(body.amount);
+    if (!Number.isInteger(amount) || amount < 200 || amount > 100000) return error('Informe entre R$ 2,00 e R$ 1.000,00.');
+    return { order: newOrder(null, 'donation', null, amount) };
+  }
+  const orderMatch = path.match(/^\/(?:me\/orders|donations)\/([^/]+)(\/reconcile)?$/);
   if (orderMatch) {
     const all = orders(); const order = all.find(o => o.id === orderMatch[1]);
-    if (!order) return error('Pedido não encontrado.');
+    if (!order || (path.startsWith('/donations/') && (order.type !== 'donation' || order.candleId !== null))) return error('Pedido não encontrado.');
     if (orderMatch[2] && method === 'POST') {
       order.status = 'paid'; put(ORDERS, all);
       const allCandles = candles(); const candle = allCandles.find(c => c.id === order.candleId);
@@ -104,7 +109,7 @@ export function demoRequest(path: string, method: string, body: Record<string, u
   return error('Ação indisponível na prévia local.');
 }
 
-function newOrder(candleId: string, type: Order['type'], plan: PlanId | null, amount: number): Order {
+function newOrder(candleId: string | null, type: Order['type'], plan: PlanId | null, amount: number): Order {
   const order: Order = { id: id(), candleId, type, plan, amount, status: 'pending', pixCode: 'PIX-DEMONSTRACAO-SEM-COBRANCA', expiresAt: Date.now() + 3600_000 };
   put(ORDERS, [order, ...orders()]); return order;
 }

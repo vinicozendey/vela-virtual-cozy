@@ -7,7 +7,7 @@ export type Candle = {
   createdAt?: number; editedAt?: number | null; scheduledCycle?: { plan: PlanId; startsAt: number } | null; lastCycleEndedAt?: number | null;
 };
 export type Order = {
-  id: string; candleId: string; type: 'candle' | 'renewal' | 'donation'; plan: PlanId | null;
+  id: string; candleId: string | null; type: 'candle' | 'renewal' | 'donation'; plan: PlanId | null;
   amount: number; status: 'creating' | 'pending' | 'paid' | 'expired' | 'failed' | 'refunded' | 'review_required';
   pixCode?: string; qrCode?: string; expiresAt?: number;
 };

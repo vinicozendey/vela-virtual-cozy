@@ -17,6 +17,9 @@
 .donation-presets{display:flex;gap:9px;margin:20px 0 17px}
 .donation-presets button{flex:1;padding:10px;border:1px solid #cfb6a1;border-radius:9px;background:#fffaf3;color:#75523f;font-weight:700}
 .donation-presets button.selected{border-color:#94583f;background:#f2e2d4}
+.donation-card fieldset{border:0;padding:0;margin:24px 0 0;min-width:0;text-align:left}
+.donation-card legend{font-weight:700;color:#554b40}
+.donation-card form>.button{width:100%;margin-bottom:20px}
 
 .pix-qr{margin:20px 0 24px}.pix-qr .qr-code{width:240px;height:240px;margin:0 auto 10px;padding:12px;image-rendering:pixelated}.pix-qr figcaption{font-size:.84rem;color:#75685d;line-height:1.5}
 
