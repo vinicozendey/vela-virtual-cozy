@@ -87,6 +87,26 @@ test('legacy jobs and summaries still send plain text', async t => {
   await sendServiceEmail({ ...credentials, text: 'Resumo de oração' });
 });
 
+test('queued completion emails send every template variable as a string, including zero counts', async t => {
+  const cycle = nextCycle('free', Date.parse('2026-10-23T12:11:00Z'));
+  const job = candleEndedEmail({
+    candleId: 'queued-candle', cycle, publicBase: 'https://vela.example',
+    candle: { ownerEmail: credentials.to, title: 'Minha intenção', prayerCount: 0, messageCount: 3 },
+  });
+  const template = emailTemplateForJob(job, { EMAIL_CANDLE_ENDED_TEMPLATE_ID: 'vela-concluda' });
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    assert.deepEqual(payload.template, {
+      id: 'vela-concluda',
+      variables: { ...job.variables, DURACAO_DIAS: '7', TOTAL_ORACOES: '0', TOTAL_MENSAGENS: '3' },
+    });
+    assert.ok(Object.values(payload.template.variables).every(value => typeof value === 'string'));
+    return Response.json({ id: 'email-123' });
+  });
+  await sendServiceEmail({ ...credentials, template });
+  assert.equal(template.variables.TOTAL_ORACOES, 0);
+});
+
 test('missing template configuration fails before contacting Resend', async t => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Unexpected request'); });
   await assert.rejects(sendServiceEmail({ ...credentials, template: { variables: {} } }), /ID ou alias/);

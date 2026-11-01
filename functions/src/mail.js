@@ -54,6 +54,12 @@ export function emailTemplateForJob(job, env = process.env) {
 export async function sendServiceEmail({ key, from, to, subject, text, template, idempotencyKey }) {
   if (!key || !from) throw new Error('Envio de e-mail não configurado.');
   if (template && !template.id) throw new Error('Informe o ID ou alias do template publicado no Resend.');
+  const payload = template ? {
+    template: {
+      ...template,
+      variables: Object.fromEntries(Object.entries(template.variables || {}).map(([name, value]) => [name, String(value)])),
+    },
+  } : { text };
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -61,7 +67,7 @@ export async function sendServiceEmail({ key, from, to, subject, text, template,
       'Content-Type': 'application/json',
       'Idempotency-Key': idempotencyKey,
     },
-    body: JSON.stringify({ from, to: [to], subject, ...(template ? { template } : { text }) }),
+    body: JSON.stringify({ from, to: [to], subject, ...payload }),
   });
   if (!response.ok) throw new Error(`Falha no envio de e-mail: HTTP ${response.status}`);
 }
